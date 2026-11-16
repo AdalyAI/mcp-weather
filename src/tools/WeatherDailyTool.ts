@@ -2,6 +2,7 @@ import { z } from "zod";
 import axios from "axios";
 import type { TextContent } from "@modelcontextprotocol/sdk/types.js";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
+import { describeUpstreamError, toolError, type ToolResult } from "./result.js";
 
 // Zod schemas for validation
 export const inputShape = {
@@ -40,7 +41,7 @@ export const inputJsonSchema = {
 export async function handler(
   args: { [x: string]: any },
   extra: RequestHandlerExtra<any, any>
-): Promise<{ content: TextContent[] }> {
+): Promise<ToolResult> {
   // Validate args using the Zod schema
   let validatedArgs: z.infer<typeof inputSchema>;
   try {
@@ -50,15 +51,15 @@ export async function handler(
       const errorMessages = error.errors
         .map((e) => `${e.path.join('.')}: ${e.message}`)
         .join(', ');
-      return { content: [{ type: 'text', text: `Invalid input: ${errorMessages}` }] };
+      return toolError(`Invalid input: ${errorMessages}`);
     }
-    return { content: [{ type: 'text', text: 'An unexpected error occurred during input validation.' }] };
+    return toolError('An unexpected error occurred during input validation.');
   }
 
   const { location, days = 5, units = "metric" } = validatedArgs;
   const apiKey = process.env.ACCUWEATHER_API_KEY;
   if (!apiKey) {
-    return { content: [{ type: 'text', text: 'Error: AccuWeather API key not configured' }] };
+    return toolError('Error: AccuWeather API key not configured');
   }
 
   try {
@@ -67,7 +68,7 @@ export async function handler(
     const locationResp = await axios.get(locationUrl);
 
     if (!locationResp.data || locationResp.data.length === 0) {
-      return { content: [{ type: 'text', text: `No location found for: ${location}` }] };
+      return toolError(`No location found for: ${location}`);
     }
 
     const locationKey = locationResp.data[0].Key;
@@ -85,9 +86,7 @@ export async function handler(
     const data = forecastResp.data;
 
     if (!data || !data.DailyForecasts || !Array.isArray(data.DailyForecasts) || data.DailyForecasts.length === 0) {
-      return {
-        content: [{ type: 'text', text: `No daily forecast data available for location: ${location}` }]
-      };
+      return toolError(`No daily forecast data available for location: ${location}`);
     }
 
     const degreeSymbol = "°";
@@ -110,7 +109,7 @@ export async function handler(
 
     return { content };
   } catch (error) {
-    console.error("WeatherDailyTool handler error:", error);
+    console.error("WeatherDailyTool handler error:", describeUpstreamError(error));
     let errorMessage = "An error occurred while fetching weather data.";
 
     if (axios.isAxiosError(error)) {
@@ -125,7 +124,7 @@ export async function handler(
       }
     }
 
-    return { content: [{ type: 'text', text: errorMessage }] };
+    return toolError(errorMessage);
   }
 }
 

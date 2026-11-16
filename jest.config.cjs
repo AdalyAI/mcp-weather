@@ -3,4 +3,6 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/tests/**/*.test.ts'],
   moduleFileExtensions: ['ts', 'js', 'json'],
+  // Sources import siblings with the .js extension the ESM build needs.
+  moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
 };

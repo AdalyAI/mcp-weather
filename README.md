@@ -159,6 +159,19 @@ This MCP server allows large language models (like Claude) to access real-time w
    - "What will the weather be like in Tokyo this week in Fahrenheit?"
    - "Will it rain in San Francisco tomorrow?"
 
+## HTTP Server Settings
+
+When run with `MCP_TRANSPORT=streamable-http` (or with `PORT` set), the server listens for Streamable HTTP on `MCP_PATH` (default `/mcp`). These limits apply:
+
+| Variable | Default | Effect |
+|---|---|---|
+| `API_KEY` | unset | When set, requests must send it in the `x-api-key` header |
+| `MAX_BODY_BYTES` | `65536` | Larger request bodies get HTTP 413 before they are buffered or parsed |
+| `MAX_SESSIONS` | `100` | New sessions beyond this get HTTP 503 with `Retry-After` |
+| `SESSION_IDLE_TIMEOUT_MS` | `900000` | Sessions with no requests for this long are closed and freed |
+
+A `DELETE` on the MCP path closes the session and frees its slot straight away. Tool calls that fail input validation, or whose AccuWeather request fails, return a result with `isError: true`.
+
 ## Development
 
 - Install dev dependencies: `npm install`
